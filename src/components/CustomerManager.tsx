@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Zap, Save, Trash2, Edit } from 'lucide-react'
+import { Search, Zap, Save, Trash2, Edit, Download } from 'lucide-react'
 import { saveCustomer, deleteCustomer } from '@/actions/actions'
 
 export default function CustomerManager({ customers = [], categories = [] }: { customers: any[], categories: any[] }) {
@@ -13,7 +13,6 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
   const [draftPhones, setDraftPhones] = useState<Record<string, string>>({})
   const [draftBalances, setDraftBalances] = useState<Record<string, number>>({})
 
-  // RESTORED: newId state for manual Primary Key assignment
   const [newId, setNewId] = useState('')
   const [newName, setNewName] = useState('')
   const [newCat, setNewCat] = useState('')
@@ -26,9 +25,44 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
       return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.id || '').toLowerCase().includes(q)
   })
 
+  // NEW: Updated CSV Export Function to handle separate categories
+  const handleExportCSV = (exportType: 'customer' | 'supplier') => {
+      // Data ko category ke hisaab se filter karein
+      const dataToExport = filteredCustomers.filter(c => 
+          (c.category || '').toLowerCase().includes(exportType)
+      )
+
+      if (dataToExport.length === 0) return alert(`No ${exportType} data available to export.`)
+
+      const headers = ['ID', 'Name', 'Category', 'Phone', 'Address', 'Opening Balance']
+      const csvRows = [headers.join(',')]
+
+      dataToExport.forEach(c => {
+          const row = [
+              `="${c.id}"`,
+              `="${c.name || ''}"`,
+              `="${c.category || ''}"`,
+              `="${c.phone || ''}"`,
+              `="${c.address || ''}"`,
+              c.openingBalance || 0
+          ]
+          csvRows.push(row.join(','))
+      })
+
+      const csvContent = csvRows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const fileName = exportType === 'customer' ? 'Customers_Only' : 'Suppliers_Only'
+      a.download = `${fileName}_Export_${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+  }
+
   const handleEditClick = (c: any) => {
       setEditingOriginalId(c.id)
-      setNewId(c.id) // Loads the ID into the box for editing
+      setNewId(c.id)
       setNewName(c.name)
       setNewCat(c.category || '')
       setNewPhone(c.phone || '')
@@ -48,10 +82,7 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
       setIsSaving(true)
       try {
           const formData = new FormData()
-          if (editingOriginalId) {
-              formData.append('originalId', editingOriginalId)
-          }
-          // Passes the manually typed ID to the database
+          if (editingOriginalId) formData.append('originalId', editingOriginalId)
           if (newId) formData.append('id', newId) 
           
           formData.append('name', newName)
@@ -130,7 +161,6 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
                 {editingOriginalId && <button type="button" onClick={handleCancelEdit} className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-800">Cancel Edit</button>}
             </div>
             
-            {/* ROW 1: Customer ID and Customer Name */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
                     <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block">Customer ID (Optional)</label>
@@ -142,7 +172,6 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
                 </div>
             </div>
 
-            {/* ROW 2: Category, Phone, and Opening Balance */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
                     <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block">Category</label>
@@ -161,7 +190,6 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
                 </div>
             </div>
 
-            {/* ROW 3: Address */}
             <div className="mb-6">
                 <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block">Address</label>
                 <textarea id="new-c-addr" value={newAddress} onChange={e => setNewAddress(e.target.value)} onKeyDown={(e) => handleKeyDown(e, 'submit')} dir="ltr" rows={2} className="urdu-font text-left w-full p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-600 resize-none uppercase" />
@@ -172,17 +200,25 @@ export default function CustomerManager({ customers = [], categories = [] }: { c
             </button>
         </form>
 
-        {/* ... Rest of the CustomerManager Table Data ... */}
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-slate-200">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div className="relative w-full md:w-72">
+            <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
+                <div className="relative w-full lg:w-80">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" placeholder="Search name, phone or ID..." value={search} onChange={e => setSearch(e.target.value)} dir="ltr" className="urdu-font text-left w-full pl-10 p-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-600" />
                 </div>
                 
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-3 w-full lg:w-auto">
+                    {/* NEW: Export CSV Buttons (Customer & Supplier) */}
+                    <button type="button" onClick={() => handleExportCSV('customer')} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200">
+                        <Download size={16} /> Customers CSV
+                    </button>
+
+                    <button type="button" onClick={() => handleExportCSV('supplier')} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition bg-slate-900 text-white hover:bg-black shadow-md border border-slate-800">
+                        <Download size={16} /> Suppliers CSV
+                    </button>
+
                     {!quickEditMode ? (
-                        <button type="button" onClick={() => setQuickEditMode(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
+                        <button type="button" onClick={() => setQuickEditMode(true)} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
                             <Zap size={16} /> Quick Edit Data
                         </button>
                     ) : (
