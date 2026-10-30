@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String?   @unique 
+  password       String
+  name           String?
+  email          String?   @unique
+  role           String    @default("ADMIN")
+  parentId       String?
+  branchId       String?
+  assignedBranch Branch?   @relation(fields: [branchId], references: [id])
+  invoices       Invoice[]
+  customers      Customer[] 
+  products       Product[]  
+}
+
+model CustomerCategory {
+  id     String @id @default(cuid())
+  name   String
+  userId String
+}
+
+model ProductCategory {
+  id     String @id @default(cuid())
+  name   String
+  userId String
+}
+
+model Customer {
+  id             String    @id
+  name           String
+  phone          String?
+  address        String?
+  category       String?
+  openingBalance Float     @default(0)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id]) 
+  invoices       Invoice[]
+}
+
+model Product {
+  id             String              @id
+  name           String
+  category       String?
+  unit           String              @default("Pcs")
+  cost           Float               @default(0)
+  price          Float               @default(0)
+  stock          Int                 @default(0)
+  isService      Boolean             @default(false) // Added to handle AMC and maintenance services
+  userId         String
+  user           User                @relation(fields: [userId], references: [id]) 
+  items          InvoiceItem[]
+  branchStocks   ProductStock[]
+  transferItems  StockTransferItem[]
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  branchId       String?
+  branch         Branch?       @relation(fields: [branchId], references: [id])
+  createdAt      DateTime      @default(now())
+  totalAmount    Float         @default(0)
+  discountAmount Float         @default(0)
+  paidAmount     Float         @default(0)
+  isReturn       Boolean       @default(false)
+  isHold         Boolean       @default(false)
+  notes          String?
+  items          InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Float
+  price     Float
+}
+
+model Branch {
+  id                 String          @id @default(cuid())
+  name               String
+  type               String
+  userId             String
+  users              User[]
+  invoices           Invoice[]
+  productStocks      ProductStock[]
+  transfersFrom      StockTransfer[] @relation("FromBranch")
+  transfersTo        StockTransfer[] @relation("ToBranch")
+}
+
+model ProductStock {
+  id        String  @id @default(cuid())
+  productId String
+  branchId  String
+  quantity  Float   @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, branchId])
+}
+
+model StockTransfer {
+  id           String              @id @default(cuid())
+  userId       String
+  fromBranchId String
+  toBranchId   String
+  status       String              @default("Pending")
+  transferDate DateTime            @default(now())
+  acceptDate   DateTime?
+  fromBranch   Branch              @relation("FromBranch", fields: [fromBranchId], references: [id])
+  toBranch     Branch              @relation("ToBranch", fields: [toBranchId], references: [id])
+  items        StockTransferItem[]
+}
+
+model StockTransferItem {
+  id              String        @id @default(cuid())
+  stockTransferId String
+  productId       String
+  quantity        Float
+  stockTransfer   StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+}
