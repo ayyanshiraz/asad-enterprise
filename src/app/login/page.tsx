@@ -12,7 +12,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-slate-200">
         
         <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-4 shadow-lg">TS</div>
+            <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-4 shadow-lg">AE</div>
             <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Welcome Back</h1>
             <p className="text-slate-500 font-bold text-sm mt-1">Asad Enterprise Demo</p>
         </div>
